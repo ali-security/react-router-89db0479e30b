@@ -1,11 +1,7 @@
 name: ⚙️ Deduplicate lock file
 
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - ./pnpm-lock.yaml
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,6 +11,7 @@ jobs:
   format:
     if: github.repository == 'remix-run/react-router'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: ⬇️ Checkout repo
