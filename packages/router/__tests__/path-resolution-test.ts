@@ -541,4 +541,69 @@ describe("path resolution", () => {
     expect(createPath(router.state.location)).toBe("/base/path?c=3");
     expect(router.state.matches[0].route.path).toBe("/path");
   });
+
+  describe("paths with embedded double slashes", () => {
+    const getRouter = () =>
+      createRouter({
+        routes: [
+          {
+            path: "/",
+            children: [
+              {
+                path: "foo",
+                children: [
+                  {
+                    id: "activeRoute",
+                    path: "bar",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        history: createMemoryHistory({
+          initialEntries: ["/foo/bar"],
+        }),
+      }).initialize();
+
+    let warnSpy: jest.SpyInstance;
+    beforeEach(() => {
+      warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it("does not resolve route-relative paths to protocol-relative URLs", () => {
+      let router = getRouter();
+      router.navigate("x/../../..//evil.com", { fromRouteId: "activeRoute" });
+      expect(router.state.location.pathname).toBe("/evil.com");
+      expect(createPath(router.state.location)).not.toMatch(/^\/\//);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Pathnames cannot have embedded double slashes - normalizing " +
+          "x/../../..//evil.com -> x/../../../evil.com"
+      );
+      router.dispose();
+    });
+
+    it("does not resolve path-relative paths to protocol-relative URLs", () => {
+      let router = getRouter();
+      router.navigate("../../..//evil.com", { relative: "path" });
+      expect(router.state.location.pathname).toBe("/evil.com");
+      expect(createPath(router.state.location)).not.toMatch(/^\/\//);
+      router.dispose();
+    });
+
+    it("resolves dot segments in absolute paths", () => {
+      let router = getRouter();
+      router.navigate("/foo/../..//evil.com");
+      expect(router.state.location.pathname).toBe("/evil.com");
+      router.dispose();
+
+      router = getRouter();
+      router.navigate("/foo/../bar");
+      expect(router.state.location.pathname).toBe("/bar");
+      router.dispose();
+    });
+  });
 });

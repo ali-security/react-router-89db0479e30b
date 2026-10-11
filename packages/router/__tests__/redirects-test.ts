@@ -654,6 +654,84 @@ describe("redirects", () => {
     });
   });
 
+  describe("relative redirect paths with embedded double slashes", () => {
+    let warnSpy: jest.SpyInstance;
+    beforeEach(() => {
+      warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it("does not redirect to an external origin (loader)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent");
+      await A.loaders.parent.redirectReturn("x/../..//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("does not redirect to an external origin (action)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.child.redirectReturn("x/../../..//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("does not redirect to an external origin (fetcher)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.fetch("/parent", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.parent.redirectReturn("x/../..//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("resolves dot segments in absolute redirect paths", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent");
+      await A.loaders.parent.redirectReturn("/parent/../..//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+  });
+
   it("automatically replaces in the history stack if you redirect to the same location (root relative)", async () => {
     let t = setup({ routes: REDIRECT_ROUTES });
 

@@ -533,6 +533,38 @@ describe("ssr", () => {
       expect((response as Response).headers.get("Location")).toBe("/parent");
     });
 
+    it("should not produce protocol-relative Locations from relative redirects with embedded double slashes", async () => {
+      let warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+      let { query } = createStaticHandler([
+        {
+          path: "/",
+          children: [
+            {
+              path: "parent",
+              children: [
+                {
+                  path: "child",
+                  loader: () => redirect("x/../../..//evil.com"),
+                  action: () => redirect("/parent/../..//evil.com"),
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      let response = await query(createRequest("/parent/child"));
+      expect(response instanceof Response).toBe(true);
+      expect((response as Response).status).toBe(302);
+      expect((response as Response).headers.get("Location")).toBe("/evil.com");
+
+      response = await query(createSubmitRequest("/parent/child"));
+      expect(response instanceof Response).toBe(true);
+      expect((response as Response).status).toBe(302);
+      expect((response as Response).headers.get("Location")).toBe("/evil.com");
+      warnSpy.mockRestore();
+    });
+
     it("should handle absolute redirect Responses", async () => {
       for (let url of ABSOLUTE_URLS) {
         let handler = createStaticHandler([
