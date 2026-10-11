@@ -487,6 +487,173 @@ describe("redirects", () => {
     expect(t.window.location.replace).not.toHaveBeenCalled();
   });
 
+  describe("same-origin absolute URLs with double slashes in the path", () => {
+    it("normalizes double slashes so the path is not treated as a protocol-relative URL (action)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.child.redirectReturn("http://localhost//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        hash: "",
+        pathname: "/evil.com",
+        search: "",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("normalizes double slashes so the path is not treated as a protocol-relative URL (loader)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent");
+      await A.loaders.parent.redirectReturn("http://localhost//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("normalizes double slashes so the path is not treated as a protocol-relative URL (replace)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+        replace: true,
+      });
+
+      await A.actions.child.redirectReturn("http://localhost//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+      });
+    });
+
+    it("normalizes double slashes so the path is not treated as a protocol-relative URL (fetcher)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.fetch("/parent", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.parent.redirectReturn("http://localhost//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+        state: {
+          _isRedirect: true,
+        },
+      });
+    });
+
+    it("normalizes repeated slashes and backslashes in same-origin absolute URLs", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.child.redirectReturn("http://localhost/\\/\\evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        pathname: "/evil.com",
+      });
+    });
+
+    it("normalizes double slashes and preserves search/hash for same-origin absolute URLs", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      let B = await A.actions.child.redirectReturn(
+        "http://localhost//parent?a=1#hash",
+        undefined,
+        undefined,
+        ["parent"]
+      );
+      await B.loaders.parent.resolve("PARENT");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+      expect(t.router.state.location).toMatchObject({
+        hash: "#hash",
+        pathname: "/parent",
+        search: "?a=1",
+        state: {
+          _isRedirect: true,
+        },
+      });
+      expect(t.router.state.loaderData).toMatchObject({
+        parent: "PARENT",
+      });
+    });
+
+    it("normalizes double slashes when reloading the document (assign)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      await A.actions.child.redirectReturn("http://localhost//evil.com", 301, {
+        "X-Remix-Reload-Document": "true",
+      });
+      expect(t.window.location.assign).toHaveBeenCalledWith("/evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalledWith("//evil.com");
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+    });
+
+    it("normalizes double slashes when reloading the document (replace)", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+        replace: true,
+      });
+
+      await A.actions.child.redirectReturn("http://localhost//evil.com", 301, {
+        "X-Remix-Reload-Document": "true",
+      });
+      expect(t.window.location.replace).toHaveBeenCalledWith("/evil.com");
+      expect(t.window.location.replace).not.toHaveBeenCalledWith("//evil.com");
+      expect(t.window.location.assign).not.toHaveBeenCalled();
+    });
+
+    it("still treats cross-origin absolute URLs as external", async () => {
+      let t = setup({ routes: REDIRECT_ROUTES });
+
+      let A = await t.navigate("/parent/child", {
+        formMethod: "post",
+        formData: createFormData({}),
+      });
+
+      let url = "http://remix.run//double//slash";
+      await A.actions.child.redirectReturn(url);
+      expect(t.window.location.assign).toHaveBeenCalledWith(url);
+      expect(t.window.location.replace).not.toHaveBeenCalled();
+    });
+  });
+
   it("automatically replaces in the history stack if you redirect to the same location (root relative)", async () => {
     let t = setup({ routes: REDIRECT_ROUTES });
 
