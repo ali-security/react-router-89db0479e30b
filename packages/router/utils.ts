@@ -1077,6 +1077,9 @@ export function stripBasename(
   return pathname.slice(startIndex) || "/";
 }
 
+// Only a literal leading `//` is left untouched by `resolvePath` - leading
+// mixed `\`/`/` separators are normalized below so they can't be used to
+// produce a protocol-relative URL
 const ABSOLUTE_URL_REGEX = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url);
 
@@ -1097,9 +1100,9 @@ export function resolvePath(to: To, fromPathname = "/"): Path {
     if (isAbsoluteUrl(toPathname)) {
       pathname = toPathname;
     } else {
-      if (toPathname.includes("//")) {
+      if (/[\\/]{2}/.test(toPathname)) {
         let oldPathname = toPathname;
-        toPathname = toPathname.replace(/\/\/+/g, "/");
+        toPathname = removeDoubleSlashes(toPathname);
         warning(
           false,
           `Pathnames cannot have embedded double slashes - normalizing ` +
@@ -1136,7 +1139,11 @@ function resolvePathname(relativePath: string, fromPathname: string): string {
     }
   });
 
-  return segments.length > 1 ? segments.join("/") : "/";
+  // Collapse any leading mixed separators (e.g., `/\evil.com`) so the resolved
+  // pathname can't be treated as a protocol-relative URL by the browser
+  return segments.length > 1
+    ? segments.join("/").replace(/^[\\/]{2,}/, "/")
+    : "/";
 }
 
 function getInvalidPathError(
@@ -1303,7 +1310,7 @@ export function getToPathname(to: To): string | undefined {
 }
 
 export const removeDoubleSlashes = (path: string): string =>
-  path.replace(/\/\/+/g, "/");
+  path.replace(/[\\/]{2,}/g, "/");
 
 /**
  * @private

@@ -924,7 +924,7 @@ const isBrowser =
   typeof window.document !== "undefined" &&
   typeof window.document.createElement !== "undefined";
 
-const ABSOLUTE_URL_REGEX = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+const ABSOLUTE_URL_REGEX = /^(?:[a-z][a-z0-9+.-]*:|[\\/]{2})/i;
 
 /**
  * The public API for rendering a history-aware `<a>`.
@@ -959,7 +959,9 @@ export const Link = React.forwardRef<HTMLAnchorElement, LinkProps>(
       if (isBrowser) {
         try {
           let currentUrl = new URL(window.location.href);
-          let targetUrl = to.startsWith("//")
+          // Mixed leading separators (e.g., `/\`) are parsed by the URL
+          // constructor the same way as a protocol-relative `//`
+          let targetUrl = /^[\\/]{2}/.test(to)
             ? new URL(currentUrl.protocol + to)
             : new URL(to);
           let path = stripBasename(targetUrl.pathname, basename);

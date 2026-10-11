@@ -96,6 +96,53 @@ describe("A <Link> click", () => {
     expect(h1?.textContent).toEqual("About");
   });
 
+  it("navigates to the new page when using a same-origin URL with mixed leading separators", () => {
+    for (let to of [
+      "/\\localhost/about",
+      "\\\\localhost/about",
+      "\\/localhost/about",
+    ]) {
+      let container = document.createElement("div");
+      document.body.appendChild(container);
+
+      let root = ReactDOM.createRoot(container);
+      act(() => {
+        root.render(
+          <MemoryRouter initialEntries={["/home"]}>
+            <Routes>
+              <Route
+                path="home"
+                element={
+                  <div>
+                    <h1>Home</h1>
+                    <Link to={to}>About</Link>
+                  </div>
+                }
+              />
+              <Route path="about" element={<h1>About</h1>} />
+            </Routes>
+          </MemoryRouter>
+        );
+      });
+
+      let anchor = container.querySelector("a");
+      expect(anchor).not.toBeNull();
+
+      let event: MouseEvent;
+      act(() => {
+        event = click(anchor);
+      });
+
+      expect(event.defaultPrevented).toBe(true);
+      let h1 = container.querySelector("h1");
+      expect(h1).not.toBeNull();
+      expect(h1?.textContent).toEqual("About");
+
+      act(() => root.unmount());
+      document.body.removeChild(container);
+    }
+  });
+
   describe("when an external absolute URL is specified", () => {
     it("does not prevent default", () => {
       function Home() {

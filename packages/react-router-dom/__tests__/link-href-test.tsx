@@ -960,6 +960,40 @@ describe("<Link> href", () => {
     warnSpy.mockRestore();
   });
 
+  test("does not resolve paths with mixed leading separators to protocol-relative hrefs", () => {
+    let warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    let renderer: TestRenderer.ReactTestRenderer;
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <MemoryRouter initialEntries={["/inbox/messages"]}>
+          <Routes>
+            <Route path="inbox">
+              <Route
+                path="messages"
+                element={
+                  <>
+                    <Link to={"../../\\evil.com"} />
+                    <Link to={"x/../../../\\evil.com"} />
+                    <Link to={"../../\\evil.com"} relative="path" />
+                    <Link to={"/inbox/../\\evil.com"} />
+                  </>
+                }
+              />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      );
+    });
+
+    expect(renderer.root.findAllByType("a").map((a) => a.props.href)).toEqual([
+      "/evil.com",
+      "/evil.com",
+      "/evil.com",
+      "/evil.com",
+    ]);
+    warnSpy.mockRestore();
+  });
+
   test("renders fine when used outside a route context", () => {
     let renderer: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {

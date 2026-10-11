@@ -76,6 +76,36 @@ describe("resolvePath", () => {
       pathname: "/foo",
     });
 
+    expect(resolvePath("\\\\foo")).toMatchObject({
+      pathname: "/foo",
+    });
+
+    expect(resolvePath("/\\foo")).toMatchObject({
+      pathname: "/foo",
+    });
+
+    expect(resolvePath("\\/foo")).toMatchObject({
+      pathname: "/foo",
+    });
+
+    spy.mockRestore();
+  });
+
+  it("does not resolve leading backslashes to protocol-relative paths", () => {
+    let spy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(resolvePath("\\foo")).toMatchObject({
+      pathname: "/foo",
+    });
+
+    expect(resolvePath("../\\foo", "/inbox")).toMatchObject({
+      pathname: "/foo",
+    });
+
+    expect(resolvePath("search/../../\\foo", "/inbox")).toMatchObject({
+      pathname: "/foo",
+    });
+
     spy.mockRestore();
   });
 

@@ -605,5 +605,23 @@ describe("path resolution", () => {
       expect(router.state.location.pathname).toBe("/bar");
       router.dispose();
     });
+
+    it("does not resolve mixed leading separators to protocol-relative URLs", () => {
+      let cases: [string, { fromRouteId?: string; relative?: "path" }][] = [
+        ["\\\\evil.com", {}],
+        ["/\\evil.com", {}],
+        ["\\/evil.com", {}],
+        ["x/../../../\\evil.com", { fromRouteId: "activeRoute" }],
+        ["../../\\evil.com", { relative: "path" }],
+      ];
+
+      for (let [to, opts] of cases) {
+        let router = getRouter();
+        router.navigate(to, opts);
+        expect(router.state.location.pathname).toBe("/evil.com");
+        expect(createPath(router.state.location)).not.toMatch(/^[\\/]{2}/);
+        router.dispose();
+      }
+    });
   });
 });
